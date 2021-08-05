@@ -57,13 +57,56 @@ Using the tables above, please write the SQL code that would answer each of the 
 
 1.  Select all the clients called Paul in first_name or middle_name and who are more than 25 years old. 
     In the results, create a column with the client's age in years. Order them from older to younger.
-    
+
+WITH client_info AS(
+  SELECT *, YEAR(CURDATE())-YEAR(date_of_birth)-(RIGHT(CURDATE(), 5)<RIGHT(date_of_birth, 5)) AS client_age
+    FROM client
+)
+SELECT *
+  FROM client_info
+  WHERE (first_name='Paul' OR middle_name='Paul') AND
+    (client_age>25)
+  ORDER BY client_age DESC;
+
 2.  Add a column to the table from question (1) that contains the number of loans each customer made.
     If there is no loan, this column should show 0.
 
+CREATE VIEW client_paul_over_25 AS 
+  WITH client_info AS(
+    SELECT *, YEAR(CURDATE())-YEAR(date_of_birth)-(RIGHT(CURDATE(), 5)<RIGHT(date_of_birth, 5)) AS client_age
+      FROM client
+  )
+  SELECT *
+    FROM client_info
+    WHERE (first_name='Paul' OR middle_name='Paul') AND
+      (client_age>25)
+    ORDER BY client_age DESC;
+SELECT c.*, COUNT(loan_id) AS number_of_loans 
+  FROM client_paul_over_25 AS c 
+  LEFT JOIN loan AS l 
+    ON (c.client_id=l.client_id) 
+  GROUP BY c.client_id;
+
 3.  Select the 100cc, 125cc and 150cc bikes from the vehicle table and add an engine_size column to the results.
+
+SELECT *, REGEXP_SUBSTR(model_name, '[0-9]+') AS engine_size 
+  FROM vehicle 
+  WHERE model_name RLIKE '100|125|150';
 
 4.  Calculate the total principal_amount per client full name (one column that includes all the names for each client) and per vehicle make.
 
+SELECT c.client_id,CONCAT_WS(' ', first_name, middle_name, last_name) AS name, SUM(principal_amount) AS total_principal_amount, make 
+  FROM client AS c 
+  INNER JOIN loan AS l
+    ON (l.client_id=c.client_id) 
+  INNER JOIN vehicle AS v 
+    ON(l.vehicle_id=v.vehicle_id) 
+  GROUP BY c.client_id, v.vehicle_id;
+
 5.  Select the first loan submitted for each individual customer (based on the submitted_on_date column).
     Use a CTE as a first step to get to this result.
+
+    WITH cte AS ( 
+      SELECT client_id, loan_id, MIN(submitted_on_date) AS submitted_on_date FROM loan GROUP BY client_id
+    ) 
+    select * from cte;
